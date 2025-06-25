@@ -14,7 +14,7 @@ function render(state = store.home) {
       ${footer()}
     `;
 
-    router.updatePageLinks();
+  router.updatePageLinks();
 }
 
 
@@ -29,32 +29,32 @@ router.hooks({
     // Add a switch case statement to handle multiple routes
     switch (view) {
       // New Case for the Home View
-case "home":
-  axios
-    // Get request to retrieve the current weather data using the API key and providing a city name
-    .get(
-      `https://api.openweathermap.org/data/2.5/weather?appid=${process.env.OPEN_WEATHER_MAP_API_KEY}&units=imperial&q=st%20louis`
-    )
-    .then(response => {
-      // Create an object to be stored in the Home state from the response
-      store.home.weather = {
-        city: response.data.name,
-        temp: response.data.main.temp,
-        feelsLike: response.data.main.feels_like,
-        description: response.data.weather[0].main
-      };
-      done();
-  })
-  .catch((err) => {
-    console.log(err);
-    done();
-  });
-  break;
+      case "home":
+        axios
+          // Get request to retrieve the current weather data using the API key and providing a city name
+          .get(
+            `https://api.openweathermap.org/data/2.5/weather?appid=${process.env.OPEN_WEATHER_MAP_API_KEY}&units=imperial&q=st%20louis`
+          )
+          .then(response => {
+            // Create an object to be stored in the Home state from the response
+            store.home.weather = {
+              city: response.data.name,
+              temp: response.data.main.temp,
+              feelsLike: response.data.main.feels_like,
+              description: response.data.weather[0].main
+            };
+            done();
+          })
+          .catch((err) => {
+            console.log(err);
+            done();
+          });
+        break;
       // Add a case for each view that needs data from an API
       case "pizza":
         // New Axios get request utilizing already made environment variable
         axios
-          .get(`https://sc-pizza-api.onrender.com/pizzas`)
+          .get(`${process.env.PIZZA_PLACE_API_URL}/pizzas`)
           .then(response => {
             // We need to store the response to the state, in the next step but in the meantime let's see what it looks like so that we know what to store from the response.
             console.log("response", response);
@@ -65,11 +65,11 @@ case "home":
             console.log("It puked", error);
             done();
           });
-          break;
-      default :
+        break;
+      default:
         // We must call done for all views so we include default for the views that don't have cases above.
         done();
-        // break is not needed since it is the last condition, if you move default higher in the stack then you should add the break statement.
+      // break is not needed since it is the last condition, if you move default higher in the stack then you should add the break statement.
     }
   },
   already: (match) => {
@@ -79,11 +79,59 @@ case "home":
   },
   after: (match) => {
     console.info("After hook executing");
+    const view = match?.data?.view ? camelCase(match.data.view) : "home";
     router.updatePageLinks();
+
+    if (view === "order") {
+      // Add an event handler for the submit button on the form
+      document.querySelector("form").addEventListener("submit", event => {
+        event.preventDefault();
+
+        // Get the form element
+        const inputList = event.target.elements;
+        console.log("Input Element List", inputList);
+
+        // Create an empty array to hold the toppings
+        const toppings = [];
+
+        // Iterate over the toppings array
+
+        for (let checkboxInput of inputList.toppings) {
+          // If the value of the checked attribute is true then add the value to the toppings array
+          if (checkboxInput.checked) {
+            toppings.push(checkboxInput.value);
+          }
+        }
+
+        // Create a request body object to send to the API
+        const requestData = {
+          customer: inputList.customer.value,
+          crust: inputList.crust.value,
+          cheese: inputList.cheese.value,
+          sauce: inputList.sauce.value,
+          toppings: toppings
+        };
+        // Log the request body to the console
+        console.log("request Body", requestData);
+
+        axios
+          // Make a POST request to the API to create a new pizza
+          .post(`${process.env.PIZZA_PLACE_API_URL}/pizzas`, requestData)
+          .then(response => {
+            //  Then push the new pizza onto the Pizza state pizzas attribute, so it can be displayed in the pizza list
+            store.pizza.pizzas.push(response.data);
+            router.navigate("/pizza");
+          })
+          // If there is an error log it to the console
+          .catch(error => {
+            console.log("It puked", error);
+          });
+      });
+    }
 
     // add menu toggle to bars icon in nav bar
     document.querySelector(".fa-bars").addEventListener("click", () => {
-        document.querySelector("nav > ul").classList.toggle("hidden--mobile");
+      document.querySelector("nav > ul").classList.toggle("hidden--mobile");
     });
   }
 });
@@ -92,7 +140,7 @@ case "home":
 router.on({
   "/": () => render(),
   // The :view slot will match any single URL segment that appears directly after the domain name and a slash
-  '/:view': function(match) {
+  '/:view': function (match) {
     console.info("Route handler executing");
     // If URL is '/about-me':
     // match.data.view will be 'about-me'
